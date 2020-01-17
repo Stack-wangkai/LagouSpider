@@ -89,7 +89,7 @@ class LagouSpider(Spider):
     def logger(self, msg):
         dt = datetime.now().strftime('%Y-%m-%d %H:%M  ')
         msg = dt + msg + u"\n"
-        FileSteam("logger").add(msg)
+        FileSteam("logger").add(msg.encode("utf-8"))
 
     def requests(self, method=None, url=None, headers=None, *args, **kwargs):
         response = self.session.request(method or self.method,
@@ -152,7 +152,10 @@ class LagouSpider(Spider):
 
     def extractor_html(self, content):
         '''xpath提取职位信息'''
-        selector = etree.HTML(content)
+        try:
+            selector = etree.HTML(content)
+        except etree.XMLSyntaxError as e:
+            return
         if selector is None:
             return
 

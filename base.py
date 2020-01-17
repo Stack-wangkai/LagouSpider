@@ -62,7 +62,7 @@ class FileSteam(object):
     mapping = {
         "vacancy_exist": "vacancy_exist.json",
         "company_exist": "company_exist.json",
-        "logger": "logger.text"
+        "logger": "logger.txt"
     }
 
     def __init__(self, name):

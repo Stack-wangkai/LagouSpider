@@ -12,6 +12,7 @@ class Spider(object):
     顶级父类，提供爬取各大招聘网站公开职位的抽象方法和若公共方法，请继承并重写其中逻辑！
     '''
     domain = u""
+    urls = []
     url = u""
     user_agent = [
         u"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.6; rv:2.0.1) Gecko/20100101 Firefox/4.0.1",
@@ -36,9 +37,15 @@ class Spider(object):
 
     def requests(self, method, url, headers=None, *args, **kwargs):
         '''URL请求方法，所有的请求都必须经由此方法发起'''
+        response = self.session.request(method or self.method,
+                                        url=url or self.url,
+                                        headers=headers or self.get_headers,
+                                        *args, **kwargs)
+        return response
 
     def parse(self, response):
         '''响应数据解析方法'''
+        raise TypeError(u"Function TypeError")
 
     def filter(self, data):
         '''self.parse处理后的数据进行过滤，主要包括去重'''
@@ -77,18 +84,19 @@ class FileSteam(object):
             raise
         return name_map
 
+    def open(self, mode):
+        self.f = open(self.filename, mode=mode)
+        return self.f
+
     def read(self):
-        self.f = open(self.filename, "r")
-        return json.load(self.f)
+        return json.load(self.open("r"))
 
     def write(self, data):
-        self.f = open(self.filename, "w")
-        return json.dump(data, self.f)
+        return json.dump(data, self.open("w"))
 
     def add(self, msg):
-        self.f = open(self.filename, "a")
-        self.f.write(msg)
+        self.open("a").write(msg)
 
     def __del__(self):
-        if self.f:
+        if isinstance(self.f, file):
             self.f.close()

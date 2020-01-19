@@ -28,6 +28,7 @@ class LagouSpider(Spider):
         self.sid = ""
         self.exists_vacancy = 0
         self.result = []
+        self.tip = ""
         self.depend()
 
     def depend(self):
@@ -56,13 +57,13 @@ class LagouSpider(Spider):
                 self.result += resp or []
                 print u"第{}页爬取完毕".format(index)
             # 适当的间隔
-            time.sleep(random() + randint(2, 4))
+            time.sleep(random() + randint(1, 4))
         # 准备结束爬虫工作，进入mapping阶段
-        assert len(self.result), u"爬取的数据为空，已中止进程"
+        assert len(self.result), self.set_tip(u"爬取的数据为空，已中止")
         self.end_spider()
 
     def end_spider(self):
-        '''爬虫流程准备结束的函数'''
+        '''爬虫流程结束的函数，首先判断数据量是否足够'''
         num = len(self.result) - max(self.page * self.page_num, self.vacancy_totals)
 
         if num < 0 and self.current_circle_num < self.max_circle_num:
@@ -77,19 +78,7 @@ class LagouSpider(Spider):
             if result:
                 # 保存临时的职位id
                 self.write_vacancy_ids()
-            tip = u"本次职位采集完毕，共爬取{}个职位，入库{}个\n".format(len(self.vacancy_temp), result)
-            print tip
-            self.logger(tip)
-
-    def write_vacancy_ids(self):
-        ve = FileSteam("vacancy_exist").read()
-        # 合并
-        FileSteam("vacancy_exist").write(ve + self.vacancy_temp)
-
-    def logger(self, msg):
-        dt = datetime.now().strftime('%Y-%m-%d %H:%M  ')
-        msg = dt + msg + u"\n"
-        FileSteam("logger").add(msg.encode("utf-8"))
+            print self.set_tip(u"本次职位采集完毕，共爬取{}个职位，入库{}个\n".format(len(self.vacancy_temp), result))
 
     def requests(self, method=None, url=None, headers=None, *args, **kwargs):
         response = self.session.request(method or self.method,
@@ -100,18 +89,17 @@ class LagouSpider(Spider):
         return response
 
     def parse(self, response):
-        '''作进一步的响应消息校验'''
+        '''作进一步的响应信息校验'''
         status_code = response.status_code
-        tip = u"{}主页Ajax响应状态码为{}，完整响应消息".format(self.name, status_code)
-        assert status_code == 200, tip
+        assert status_code == 200, self.set_tip(u"{}主页Ajax响应状态码为{}，完整响应消息".format(self.name, status_code))
         content = response.content and json.loads(response.content)
         if content and (content.get(u"code") == 0):
             return self.filter(content.get(u"content"))
 
     def filter(self, data):
         vacancy_objs = data and data.get(u"positionResult").get(u"result")  # type:list
-        assert vacancy_objs, u"响应数据为空"
-        assert isinstance(vacancy_objs, list), u"响应数据格式有误"
+        assert vacancy_objs, self.set_tip(u"Ajax响应数据为空")
+        assert isinstance(vacancy_objs, list), self.set_tip(u"Ajax响应数据格式有误")
         # 设置sid，非第一页Ajax访问需要携带
         self.sid = data.get(u"showId")
         # 主页爬取的职位列表，过滤后的职位ID列表
@@ -135,12 +123,13 @@ class LagouSpider(Spider):
             return self.merge(filter_vacancy_summary, vacancy_datas)
 
     def spider_vacancy(self, vacancy_ids):
-        assert isinstance(vacancy_ids, list), u"响应数据格式有误，参数请传List对象"
+        assert isinstance(vacancy_ids, list), u"参数请传List对象"
         objs = []
         for i in vacancy_ids:
             response = self.requests(url=self.vacancy_url.format(i))
             if not (response.status_code == 200) and response.content:
-                print u"{}职位响应数据有误，状态码{}".format(self.name, response.status_code)
+                # 302，禁止重定向的原因
+                print u"{}职位响应状态码：{}".format(self.name, response.status_code)
                 continue
             dic = self.extractor_html(response.content)  # type: dict
             if not dic:
@@ -238,3 +227,20 @@ class LagouSpider(Spider):
     @property
     def vacancy_exist(self):
         return FileSteam("vacancy_exist").read()
+
+    def set_tip(self, tip):
+        self.tip = tip
+        return tip
+
+    def __del__(self):
+        if self.tip:
+            self.logger()
+
+    def write_vacancy_ids(self):
+        ve = FileSteam("vacancy_exist").read()
+        FileSteam("vacancy_exist").write(ve + self.vacancy_temp)
+
+    def logger(self):
+        dt = datetime.now().strftime('%Y-%m-%d %H:%M')
+        msg = dt + self.tip + u"\n"
+        FileSteam("logger").add(msg.encode("utf-8"))

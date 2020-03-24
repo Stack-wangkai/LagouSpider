@@ -21,7 +21,7 @@ class TestLagouJobHtmlSpider(object):
         self.session = requests.session()
         self.filename = os.path.join(DIR, u"html", u"job_detail_html_{}.html".format(self.job_id))
 
-    def interface(self):
+    def main(self):
         # 发起第一次请求，获取Cookie
         self.requests(url=self.caiwu_index_url,
                       headers=self.get_headers,
@@ -113,6 +113,6 @@ project_name = u"拉勾"
 if __name__ == '__main__':
     pass
     # 抓取
-    # TestLagouJobHtmlSpider(project_name).interface()
+    # TestLagouJobHtmlSpider(project_name).main()
     # 分析
-    # TestLagouJobHtmlSpider(project_name).extractor_html()
+    # TestLagouJobHtmlSpider(project_name).main()

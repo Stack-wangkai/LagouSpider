@@ -14,6 +14,8 @@ class Spider(object):
     domain = u""
     urls = []
     url = u""
+    method = u"GET"
+    name = u"拉勾"
     user_agent = [
         u"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.6; rv:2.0.1) Gecko/20100101 Firefox/4.0.1",
         u"Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_8; en-us) AppleWebKit/534.50 (KHTML, like Gecko) Version/5.1 Safari/534.50",
@@ -26,26 +28,18 @@ class Spider(object):
     }
     _cookies = {}
 
-    def __init__(self, project_name, method=u"GET"):
-        self.name = project_name
-        self.method = method
+    def __init__(self):
         self.session = requests.Session()
 
-    def interface(self):
+    def main(self):
         '''实例对方入口方法'''
         raise TypeError(u"Function TypeError")
 
     def requests(self, method, url, headers=None, *args, **kwargs):
         '''URL请求方法，所有的请求都必须经由此方法发起'''
-        response = self.session.request(method or self.method,
-                                        url=url or self.url,
-                                        headers=headers or self.get_headers,
-                                        *args, **kwargs)
-        return response
 
     def parse(self, response):
         '''响应数据解析方法'''
-        raise TypeError(u"Function TypeError")
 
     def filter(self, data):
         '''self.parse处理后的数据进行过滤，主要包括去重'''
@@ -69,6 +63,7 @@ class FileSteam(object):
     mapping = {
         "vacancy_exist": "vacancy_exist.json",
         "company_exist": "company_exist.json",
+        "company_summary": "company_summary.json",
         "logger": "logger.txt"
     }
 

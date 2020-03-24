@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 import re
 
-from create import Vacancy
+from create import Vacancy, Company
 
 
 class Mapping(object):
@@ -11,14 +11,14 @@ class Mapping(object):
         self.input_data = input_data or []
         self.output_data = []
 
-    def interface(self):
+    def main(self):
         for data in self.input_data:
             vacancy_data = self.vacancy_mapping(data)
             company_data = self.company_mapping(data)
             self.output_data.append({"vacancy": vacancy_data,
                                      "company": company_data})
         '''调用数据入库接口'''
-        result = Vacancy(self.output_data).interface()
+        result = Vacancy(self.output_data).main()
         assert result, u"创建职位异常"
         return result
 
@@ -51,9 +51,6 @@ class Mapping(object):
 
     def title(self, value):
         return {
-            "title": {
-                "c_name": value
-            }
         }
 
     def city(self, value):
@@ -79,22 +76,9 @@ class Mapping(object):
         }
 
     def tags(self, value):
-        if isinstance(value, str):
-            value = value.join(",")
-        elif isinstance(value, dict):
-            value = value.values()
-        return {"tags": [{"name": tag} for tag in value]}
+        return {}
 
     def requirement(self, value):
-        map = {
-        }
-        if not isinstance(value, str):
-            value = ""
-        res = re.findall("\d+", value)
-        if res == []:
-            val = u"不限"
-        else:
-            val = str(res[0])
         return {
         }
 
@@ -131,3 +115,17 @@ class Mapping(object):
         val = 0 if res == [] else res[0]
         return {
         }
+
+class CompanyMapping(Mapping):
+    def __init__(self, input_data):
+        super(CompanyMapping, self).__init__(input_data)
+
+    def main(self):
+        dic = {}
+        for data in self.input_data:
+            companyID = data.get("companyId")
+            company_data = self.company_mapping(data)
+            id = Company(company_data).main()
+            if id:
+                dic.update({str(companyID): id})
+        return dic

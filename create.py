@@ -10,8 +10,8 @@ from base import FileSteam
 Debug = False if "linux" in sys.platform else True
 
 
-class Vacancy(object):
-    domain = ""
+class CohirerBase(object):
+    domain = "" if not Debug else ""
 
     def __init__(self, data):
         self.data = data
@@ -20,74 +20,11 @@ class Vacancy(object):
         self.vacancy_url = self.domain + ""
         self.company_url = self.domain + ""
         self.login_url = self.domain + ""
-        self.password = ""
+        self.password = "" if Debug else ""
         self.username = ""
         self.company_file_stream = FileSteam("company_exist")
-        self.insert_van_num = 0
 
         self.login()
-
-    def interface(self):
-        for obj in self.data:
-            vacancy_data, company_data = obj.get("vacancy"), obj.get("company")
-            # 增加了一步数据的校验，因为个别字段爬取异常
-            if not self.check_vacancy_data(vacancy_data):
-                continue
-            # 冗余引用
-            self.vacancy_data = vacancy_data
-            self.company_data = company_data
-            # 先创建公司，拿到返回id，再创建职位
-            company_id = self.create_company(company_data)
-            if not company_id:
-                continue
-            # 创建职位
-            van_id = self.create_vacancy(vacancy_data, company_id)
-            if van_id:
-                self.insert_van_num += 1
-        return self.insert_van_num
-
-    def check_vacancy_data(self, data):
-        ''''''
-
-    def create_vacancy(self, data, company_id):
-        data.update({
-            "company_id": company_id
-        })
-        res = self.requests(url=self.vacancy_url, data=data)
-        assert res.status_code == 200, \
-            u"创建职位请求错误，状态码:{}，请求数据:{}".format(res.status_code, data)
-        id = json.loads(res.content).get("id")
-        print u"*" * 30 + u"\n" + u"创建职位成功，id: " + str(id)
-        return id
-
-    def create_company(self, data):
-        # 判断公司是否创建过
-        company_id = self.filter_company(data)
-        if company_id:
-            return company_id
-        res = self.requests(url=self.company_url, data=data)
-        if res.status_code == 200:
-            content = json.loads(res.content)
-            # 创建信息持久化
-            self.add_filter({self.get_company_name(data): content.get("id")})
-            return content.get("id")
-        print u"创建公司请求错误，状态码:{}，请求数据:{}".format(res.status_code, data)
-
-    def filter_company(self, data):
-        # 判断公司是否创建过，因为ID没有爬取，所以使用公司全称
-        cxr = self.company_file_stream.read()
-        name = self.get_company_name(data)
-        return name and cxr.get(name)
-
-    def add_filter(self, dic):
-        cxr = self.company_file_stream.read()  # type:dict
-        cxr.update(dic)
-        self.company_file_stream.write(cxr)
-
-    def get_company_name(self, data):
-        if data and isinstance(data, dict):
-            name = data.get("name")
-            return name and name.get("c_name")
 
     @property
     def session(self):
@@ -102,8 +39,8 @@ class Vacancy(object):
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36",
             "Connection": "keep-alive",
             "Content-Type": "application/json",
-            "Accept-Language": "",
-            "Accept": ""
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,ja;q=0.7,zh-TW;q=0.6,es;q=0.5",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3"
         }
 
     def login(self):
@@ -113,7 +50,74 @@ class Vacancy(object):
         self.requests(url=self.login_url, data=data)
 
     def random_datetime(self):
-        # 返回一个当天的随机datetime时间
         dt = datetime.now()
         return datetime(dt.year, dt.month, dt.day,
                         randint(8, 20), randint(1, 59), randint(1, 59))
+
+    def create_company(self, data):
+        company_id = self.filter_company(data)
+        if company_id:
+            return company_id
+        res = self.requests(url=self.company_url, data=data)
+        if res.status_code == 201:
+            content = json.loads(res.content)
+            self.add_filter({self.get_company_name(data): content.get("id")})
+            return content.get("id")
+
+    def filter_company(self, data):
+        cxr = self.company_file_stream.read()
+        name = self.get_company_name(data)
+        return name and cxr.get(name)
+
+    def add_filter(self, dic):
+        cxr = self.company_file_stream.read()  # type:dict
+        cxr.update(dic)
+        self.company_file_stream.write(cxr)
+
+    def get_company_name(self, data):
+        if data and isinstance(data, dict):
+            name = data.get("name")
+            return name and name.get("c_name")
+
+
+class Vacancy(CohirerBase):
+
+    def __init__(self, data):
+        super(Vacancy, self).__init__(data)
+
+    def main(self):
+        insert_van_num = 0
+        for obj in self.data:
+            vacancy_data, company_data = obj.get("vacancy"), obj.get("company")
+            if not self.check_vacancy_data(vacancy_data):
+                continue
+            company_id = vacancy_data.get("company_id")
+            if not company_id:
+                company_id = self.create_company(company_data)
+                if not company_id:
+                    continue
+            van_id = self.create_vacancy(vacancy_data, company_id)
+            self.publish_channel(van_id)
+            insert_van_num += 1
+        return insert_van_num
+
+    def check_vacancy_data(self, data):
+        if data.get("responsibility"):
+            return True
+
+    def create_vacancy(self, data, company_id):
+        ''''''
+
+    def publish_channel(self, vacancy_id):
+        ''''''
+
+
+class Company(CohirerBase):
+
+    def __init__(self, data):
+        super(Company, self).__init__(data)
+
+    def main(self):
+        company_id = self.create_company(self.data)
+        if company_id:
+            return company_id

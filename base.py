@@ -8,9 +8,6 @@ DIR = os.path.dirname(os.path.abspath(__name__))
 
 
 class Spider(object):
-    '''
-    顶级父类，提供爬取各大招聘网站公开职位的抽象方法和若公共方法，请继承并重写其中逻辑！
-    '''
     domain = u""
     urls = []
     url = u""
